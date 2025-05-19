@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+# -------------------------------------------------------------------
+# Script Name: preprocess
+# Description: Cleans a board game dataset for analysis by:
+#   - Converting Windows line endings to Unix
+#   - Converting semicolon delimiters to tabs
+#   - Converting commas in decimal numbers to dots
+#   - Removing non-ASCII characters
+#   - Filling in missing IDs with new unique values
+#
+# Usage:      ./preprocess <filename>
+# Example:    ./preprocess bgg_dataset.txt > bgg_cleaned.tsv
+# -------------------------------------------------------------------
+
+# -------------------------
+# Argument validation
+# -------------------------
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 <filename>" >&2
+    exit 1
+fi
+
+input_file=$1
+
+if [[ ! -f "$input_file" ]]; then
+    echo "Error: File '$input_file' does not exist." >&2
+    exit 2
+fi
+
+# -------------------------
+# Step 1: Normalize content
+# - Convert CRLF to LF
+# - Convert semicolons to tabs
+# - Replace commas in decimals with dots
+# - Strip non-ASCII characters
+# -------------------------
+cleaned_tmp=$(mktemp)
+
+sed 's/\r$//' "$input_file" | \
+sed 's/;/\t/g' | \
+sed 's/\([0-9]\),\([0-9]\)/\1.\2/g' | \
+LC_ALL=C tr -cd '\11\12\15\40-\176' > "$cleaned_tmp"
+
+# -------------------------
+# Step 2: Find max ID
+# -------------------------
+max_id=$(awk -F'\t' '
+    NR > 1 && $1 ~ /^[0-9]+$/ && $1+0 > max {
+        max = $1 + 0
+    }
+    END {
+        print max
+    }
+' "$cleaned_tmp")
+
+# -------------------------
+# Step 3: Replace empty IDs with unique new values
+# -------------------------
+awk -v max="$max_id" -F'\t' '
+BEGIN { OFS = "\t" }
+
+NR == 1 {
+    print  # Print header unchanged
+    next
+}
+
+{
+    if ($1 == "" || $1 ~ /^ *$/) {
+        max++
+        $1 = max
+    }
+    print
+}
+' "$cleaned_tmp"
+
+# -------------------------
+# Cleanup
+# -------------------------
+rm "$cleaned_tmp"
