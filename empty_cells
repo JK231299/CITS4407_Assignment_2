@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 
-# Usage: ./empty_cells <filename> <separator>
+# -------------------------------------------------------------------
+# Script Name: empty_cells
+# Description: Counts the number of empty cells in each column of a
+#              delimited spreadsheet file (e.g. semicolon- or tab-separated).
+#              Prints the column header and the number of empty cells in it.
+# Usage:      ./empty_cells <filename> <separator>
+# Example:    ./empty_cells bgg_dataset.txt ";"
+# -------------------------------------------------------------------
 
+# -------------------------
+# Argument validation
+# -------------------------
 if [[ $# -ne 2 ]]; then
     echo "Usage: $0 <filename> <separator>" >&2
     exit 1
@@ -10,37 +20,49 @@ fi
 filename=$1
 separator=$2
 
+# -------------------------
+# Main processing block
+# -------------------------
 awk -v FS="$separator" '
-BEGIN { OFS="\t" }
+BEGIN {
+    OFS = "\t"
+}
 
+# -------------------------
+# Header row processing
+# -------------------------
 NR == 1 {
-    # Read headers
     for (i = 1; i <= NF; i++) {
         hdr[i] = $i
-        gsub(/^\/+/, "", hdr[i])            # Remove leading slashes like /ID
-        gsub(/[^[:print:]]/, "", hdr[i])    # Remove non-ASCII
-        gsub(/^ +| +$/, "", hdr[i])         # Trim whitespace
-        if (hdr[i] ~ /^ *$/) {
-            hdr[i] = "Column_" i
+        gsub(/^\/+/, "", hdr[i])             # Remove leading slashes (e.g. "/ID")
+        gsub(/[^[:print:]]/, "", hdr[i])     # Strip non-ASCII characters
+        gsub(/^ +| +$/, "", hdr[i])          # Trim surrounding whitespace
+        if (hdr[i] == "") {
+            hdr[i] = "Column_" i             # Fallback name for missing headers
         }
-        count[i] = 0
+        count[i] = 0                          # Initialize empty count for each column
     }
     num_fields = NF
     next
 }
 
+# -------------------------
+# Data row processing
+# -------------------------
 {
-    # Count empty or missing fields
     for (i = 1; i <= num_fields; i++) {
-        field = (i <= NF ? $i : "")
-        gsub(/[^[:print:]]/, "", field)  # Remove non-ASCII
-        gsub(/^ +| +$/, "", field)       # Trim leading/trailing spaces
+        field = (i <= NF ? $i : "")          # Handle short rows by padding empty fields
+        gsub(/[^[:print:]]/, "", field)      # Remove non-ASCII characters
+        gsub(/^ +| +$/, "", field)           # Trim spaces
         if (field == "") {
             count[i]++
         }
     }
 }
 
+# -------------------------
+# Final output
+# -------------------------
 END {
     for (i = 1; i <= num_fields; i++) {
         print hdr[i] ": " count[i]
