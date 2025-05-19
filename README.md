@@ -50,7 +50,7 @@ Counts and reports the number of empty (missing) values in each column of a deli
 
 **Usage:**
 ```bash
-./empty_cells <filename> <separator>
+./empty_cells.sh <filename> <separator>
 ```
 
 ---
